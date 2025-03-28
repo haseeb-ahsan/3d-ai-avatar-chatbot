@@ -9,7 +9,7 @@ const Head = () => {
   const model = useGLTF('/head.glb');
   const animation = useAnimations(model.animations, model.scene);
   const action = animation.actions.Animation;
-  const { isPlaying, setIsPlaying } = useContext(AppContext);
+  const { isPlaying } = useContext(AppContext);
 
   useEffect(() => {
     if (isPlaying && action) {
