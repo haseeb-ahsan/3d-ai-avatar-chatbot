@@ -28,11 +28,17 @@ export async function POST(request: Request) {
     // console.log('ad', response, aiMessage);
 
     return NextResponse.json({ message: aiMessage }, { status: 200 });
-  } catch (error: Error) {
+  } catch (error: unknown) {
     console.error('Error communicating with Gemini:', error);
+    let errorMessage = 'Failed to get response from Gemini.';
+    if (error instanceof Error) {
+      errorMessage = `${errorMessage} ${error.message}`;
+    } else if (typeof error === 'string') {
+      errorMessage = `${errorMessage} ${error}`;
+    }
     return NextResponse.json(
-      { error: 'Failed to get response from Gemini.' },
+      { error: errorMessage },
       { status: 500 }
-    );
+    )
   }
 }
