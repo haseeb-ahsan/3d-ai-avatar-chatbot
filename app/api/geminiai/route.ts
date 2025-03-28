@@ -8,10 +8,6 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // Select the Gemini model you want to use
 const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }); // Or "gemini-pro-vision" for multimodal
 
-export async function GET(request: Request) {
-  return new Response('Hello, Next.js! (Now powered by Gemini)');
-}
-
 export async function POST(request: Request) {
   const { userText } = await request.json();
 
