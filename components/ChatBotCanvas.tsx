@@ -9,37 +9,38 @@ const Head = () => {
   const model = useGLTF('/head.glb');
   const animation = useAnimations(model.animations, model.scene);
   const action = animation.actions.Animation;
-  const { isPlaying } = useContext(AppContext);
+  const { isPlaying, setIsPlaying } = useContext(AppContext);
 
   useEffect(() => {
-    if (isPlaying) {
-      action?.play();
-    } else {
-      action?.fadeOut(0.5);
+    if (isPlaying && action) {
+      action.play();
+    } else if (action) {
+      action.fadeOut(0.5);
       setTimeout(() => {
-        action?.stop();
+        action.stop();
       }, 500);
     }
   }, [isPlaying, action]);
 
   useEffect(() => {
     model.scene.traverse((child) => {
-      if (child.isMesh && child.material) {
-        if (child.material instanceof THREE.MeshStandardMaterial) {
+      if ((child as THREE.Mesh).isMesh && child.material) {
+        const mesh = child as THREE.Mesh;
+        if (mesh.material instanceof THREE.MeshStandardMaterial) {
           // Set base color (skin)
-          child.material.color = new THREE.Color('#FDD088');
+          mesh.material.color = new THREE.Color('#FDD088');
 
           // Check for eye material
-          if (child.name.toLowerCase().includes('eye')) {
-            child.material.color = new THREE.Color('#3366FF');
+          if (mesh.name?.toLowerCase().includes('eye')) {
+            mesh.material.color = new THREE.Color('#3366FF');
           }
-        } else if (child.material instanceof THREE.MeshBasicMaterial) {
+        } else if (mesh.material instanceof THREE.MeshBasicMaterial) {
           // Set base color (skin)
-          child.material.color = new THREE.Color('#FDD088');
+          mesh.material.color = new THREE.Color('#FDD088');
 
           // Check for eye material
-          if (child.name.toLowerCase().includes('eye')) {
-            child.material.color = new THREE.Color('#3366FF');
+          if (mesh.name?.toLowerCase().includes('eye')) {
+            mesh.material.color = new THREE.Color('#3366FF');
           }
         }
       }
@@ -55,7 +56,6 @@ export const ChatBotCanvas = () => {
       <OrbitControls
         enableZoom={false}
         enableDamping
-        // maxPolarAngle={2}
         maxPolarAngle={Math.PI / 2.2}
         minAzimuthAngle={-Math.PI * 0.5}
         maxAzimuthAngle={Math.PI * 0.5}
