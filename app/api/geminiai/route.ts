@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     // console.log('ad', response, aiMessage);
 
     return NextResponse.json({ message: aiMessage }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: Error) {
     console.error('Error communicating with Gemini:', error);
     return NextResponse.json(
       { error: 'Failed to get response from Gemini.' },
