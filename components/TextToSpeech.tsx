@@ -18,6 +18,12 @@ export const TextToSpeech = () => {
 
     const getVoices = () => {
       const voices = synth.getVoices();
+      console.log(
+        voices &&
+          voices.forEach((e) => {
+            e.name;
+          })
+      );
       const ukEnglishMale = voices.find(
         (voice) => voice.name === 'Google UK English Male'
       );
