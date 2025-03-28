@@ -12,7 +12,7 @@ export const TextToSpeech = () => {
   const voices = synth?.getVoices();
   console.log(voices);
 
-  const selectedVoices = voices?.find((voice) => voice.name === 'Karen');
+  const selectedVoices = voices?.find((voice) => voice.name === 'Google UK English Male');
 
   const speak = (textToSpeak: string) => {
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
