@@ -2,7 +2,7 @@
 import { AppContext } from '@/app/context/IsPlayingContext';
 import { OrbitControls, useAnimations, useGLTF } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect } from 'react';
 import * as THREE from 'three';
 
 const Head = () => {
