@@ -8,7 +8,7 @@ export const TextToSpeech = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { setIsPlaying } = useContext(AppContext);
   const [spokenText, setSpokenText] = useState(''); // State to hold the currently spoken text
-  const [originalVoice, setOriginalVoice] =
+  const [selectedVoice, setSelectedVoice] =
     useState<SpeechSynthesisVoice | null>(null);
 
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
@@ -19,15 +19,36 @@ export const TextToSpeech = () => {
     const getVoices = () => {
       const voices = synth.getVoices();
       console.log(
-        voices &&
-          voices.forEach((e) => {
-            e.name;
-          })
+        'All available voices:',
+        voices[0].name,
+        'secondvoice',
+        voices[1].name
       );
-      const ukEnglishMale = voices.find(
-        (voice) => voice.name === 'Google UK English Male'
+
+      // Try to find a voice with language starting with 'en-US' or just 'en'
+      const englishUSVoice = voices.find(
+        (voice) => voice.lang === 'en-US' || voice.lang.startsWith('en')
       );
-      setOriginalVoice(ukEnglishMale || null);
+
+      if (englishUSVoice) {
+        console.log(
+          'Found an English (US or general) voice:',
+          englishUSVoice.name,
+          englishUSVoice.lang
+        );
+        setSelectedVoice(englishUSVoice);
+      } else if (voices.length > 0) {
+        // If no English voice is found, use the first available voice
+        console.warn(
+          'No English voice found, using the first available voice:',
+          voices[0].name,
+          voices[0].lang
+        );
+        setSelectedVoice(voices[0]);
+      } else {
+        console.warn('No speech synthesis voices available.');
+        setSelectedVoice(null);
+      }
     };
 
     getVoices();
@@ -40,13 +61,11 @@ export const TextToSpeech = () => {
     setSpokenText(textToSpeak); // Update the spoken text state
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    if (originalVoice) {
-      utterance.voice = originalVoice;
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
     } else {
-      console.warn(
-        "Google UK English Male voice not found, using browser's default."
-      );
-      // The browser will use its own default if the specific voice isn't found
+      console.warn("No suitable voice found, using browser's default.");
+      // The browser will use its own default if no voice is explicitly set
     }
     synth.speak(utterance);
     setIsPlaying(true);
