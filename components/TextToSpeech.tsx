@@ -6,7 +6,7 @@ import React, { FormEvent, useContext, useState } from 'react';
 export const TextToSpeech = () => {
   const [userText, setUserText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { isPlaying, setIsPlaying } = useContext(AppContext);
+  const { setIsPlaying } = useContext(AppContext);
 
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
   const voices = synth?.getVoices();
