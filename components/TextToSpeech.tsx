@@ -1,15 +1,20 @@
 'use client';
-
 import { AppContext } from '@/app/context/IsPlayingContext';
 import { sendTextToGeminiAi } from '@/utils/sendTextToGeminiAi';
 import React, {
   FormEvent,
+  useCallback,
   useContext,
   useEffect,
   useRef,
   useState,
 } from 'react';
 import { unlockAudio } from '@/utils/unlockAudio';
+
+// Create a constructor type for SpeechRecognition
+type SpeechRecognitionConstructor = {
+  new (): SpeechRecognition;
+};
 
 export const TextToSpeech = () => {
   const [userText, setUserText] = useState('');
@@ -38,6 +43,22 @@ export const TextToSpeech = () => {
     });
   }, []);
 
+  // Wrap submitUserText in useCallback so it remains stable when used in effects.
+  const submitUserText = useCallback(async () => {
+    if (!userText.trim()) return;
+    setIsLoading(true);
+    try {
+      const message = await sendTextToGeminiAi(userText);
+      speak(message);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+      setUserText('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userText]);
+
   // Initialize voices and SpeechRecognition
   useEffect(() => {
     if (!synth) return;
@@ -53,11 +74,15 @@ export const TextToSpeech = () => {
 
     // Initialize SpeechRecognition if supported
     if (typeof window !== 'undefined') {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
+      const SpeechRecognitionConstructor:
+        | SpeechRecognitionConstructor
+        | undefined = (window.SpeechRecognition ||
+        window.webkitSpeechRecognition) as
+        | SpeechRecognitionConstructor
+        | undefined;
+
+      if (SpeechRecognitionConstructor) {
+        const recognition = new SpeechRecognitionConstructor();
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
@@ -90,7 +115,7 @@ export const TextToSpeech = () => {
         console.warn('SpeechRecognition API is not supported in this browser.');
       }
     }
-  }, [synth]);
+  }, [synth, submitUserText]);
 
   // Function to speak out the Gemini response via SpeechSynthesis
   const speak = (textToSpeak: string) => {
@@ -107,21 +132,6 @@ export const TextToSpeech = () => {
       setIsPlaying(false);
       setSpokenText('');
     };
-  };
-
-  // Function to submit user text to Gemini API
-  const submitUserText = async () => {
-    if (!userText.trim()) return;
-    setIsLoading(true);
-    try {
-      const message = await sendTextToGeminiAi(userText);
-      speak(message);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-      setUserText('');
-    }
   };
 
   // Handler for the form submission (when the user types)
