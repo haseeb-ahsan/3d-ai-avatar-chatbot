@@ -159,7 +159,7 @@ export const TextToSpeech = () => {
           placeholder='Ask me anything...'
         />
 
-        {/* Microphone button using active press effect */}
+        {/* Microphone button using Heroicons style with active press effect */}
         <button
           type='button'
           onMouseDown={handleMicPress}
