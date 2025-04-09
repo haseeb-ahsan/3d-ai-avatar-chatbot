@@ -8,9 +8,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // Select the Gemini model you want to use
 const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }); // Or "gemini-pro-vision" for multimodal
 
-export async function GET(request: Request) {
-  return new Response('Hello, Next.js! (Now powered by Gemini)');
-}
+// export async function GET(request: Request) {
+//   return new Response('Hello, Next.js! (Now powered by Gemini)');
+// }
 
 export async function POST(request: Request) {
   const { userText } = await request.json();
@@ -26,7 +26,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await model.generateContent(userText);
+    const prompt = `${userText}\n\nPlease answer the above question in 2 to 3 sentences at most.`;
+
+    const result = await model.generateContent(prompt);
     const response = await result.response;
     const aiMessage = response.candidates?.[0]?.content?.parts?.[0]?.text;
     // console.log('ad', response, aiMessage);
