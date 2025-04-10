@@ -1,4 +1,5 @@
 'use client';
+
 import { AppContext } from '@/app/context/IsPlayingContext';
 import { sendTextToGeminiAi } from '@/utils/sendTextToGeminiAi';
 import React, {
@@ -9,14 +10,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { unlockAudio } from '@/utils/unlockAudio';
 
-// Create a constructor type for SpeechRecognition
-type SpeechRecognitionConstructor = {
-  new (): SpeechRecognition;
-};
-
-export const TextToSpeech = () => {
+const TextToSpeech = () => {
   const [userText, setUserText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { setIsPlaying } = useContext(AppContext);
@@ -26,24 +21,27 @@ export const TextToSpeech = () => {
   const [micActive, setMicActive] = useState(false);
 
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
-
-  // Ref to hold the SpeechRecognition instance
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  // Unlock speech synthesis on first user interaction (needed on mobile)
+  // Global audio unlock fallback on first interaction (if not unlocked by MuteToggle)
   useEffect(() => {
-    function handleUserInteraction() {
-      unlockAudio();
+    const handleUserInteraction = () => {
+      if (synth) {
+        const utterance = new SpeechSynthesisUtterance('');
+        utterance.volume = 0;
+        synth.speak(utterance);
+        console.log('Global audio unlocked.');
+      }
       window.removeEventListener('click', handleUserInteraction);
       window.removeEventListener('touchstart', handleUserInteraction);
-    }
+    };
     window.addEventListener('click', handleUserInteraction, { once: true });
     window.addEventListener('touchstart', handleUserInteraction, {
       once: true,
     });
-  }, []);
+  }, [synth]);
 
-  // Wrap submitUserText in useCallback so it remains stable when used in effects.
+  // Use useCallback for submission to keep reference stable
   const submitUserText = useCallback(async () => {
     if (!userText.trim()) return;
     setIsLoading(true);
@@ -62,9 +60,9 @@ export const TextToSpeech = () => {
   // Initialize voices and SpeechRecognition
   useEffect(() => {
     if (!synth) return;
-
     const getVoices = () => {
       const voices = synth.getVoices();
+      console.log('Available voices:', voices);
       const englishVoice = voices.find((voice) => voice.lang.startsWith('en'));
       setSelectedVoice(englishVoice || null);
     };
@@ -72,18 +70,14 @@ export const TextToSpeech = () => {
     getVoices();
     synth.onvoiceschanged = getVoices;
 
-    // Initialize SpeechRecognition if supported
     if (typeof window !== 'undefined') {
-      const SpeechRecognitionConstructor:
-        | SpeechRecognitionConstructor
-        | undefined = (window.SpeechRecognition ||
+      const SpeechRecognitionConstructor = (window.SpeechRecognition ||
         window.webkitSpeechRecognition) as
-        | SpeechRecognitionConstructor
+        | { new (): SpeechRecognition }
         | undefined;
-
       if (SpeechRecognitionConstructor) {
         const recognition = new SpeechRecognitionConstructor();
-        recognition.continuous = true;
+        recognition.continuous = false;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
         recognitionRef.current = recognition;
@@ -99,7 +93,6 @@ export const TextToSpeech = () => {
               interimTranscript += transcript;
             }
           }
-          // Update the input live with both final and interim transcripts
           setUserText(finalTranscript + interimTranscript);
         };
 
@@ -107,9 +100,9 @@ export const TextToSpeech = () => {
           console.error('SpeechRecognition error', event.error);
         };
 
-        // When recognition ends (i.e. mic released), submit the text automatically
+        // When speech recognition ends (e.g., mic button released), simulate form submission.
         recognition.onend = () => {
-          submitUserText();
+          handleSubmit();
         };
       } else {
         console.warn('SpeechRecognition API is not supported in this browser.');
@@ -117,71 +110,86 @@ export const TextToSpeech = () => {
     }
   }, [synth, submitUserText]);
 
-  // Function to speak out the Gemini response via SpeechSynthesis
-  const speak = (textToSpeak: string) => {
+  // Function for speech synthesis of the Gemini response.
+  const speak = (text: string) => {
     if (!synth) return;
-
-    setSpokenText(textToSpeak);
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    setSpokenText(text);
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
     if (selectedVoice) {
       utterance.voice = selectedVoice;
     }
-    synth.speak(utterance);
-    setIsPlaying(true);
+    utterance.onstart = () => console.log('Speech started');
     utterance.onend = () => {
+      console.log('Speech ended');
       setIsPlaying(false);
       setSpokenText('');
     };
+    utterance.onerror = (event) =>
+      console.error('Speech synthesis error', event.error);
+    setIsPlaying(true);
+    synth.speak(utterance);
   };
 
-  // Handler for the form submission (when the user types)
-  const handleUserText = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // Submission handler
+  const handleSubmit = async () => {
     await submitUserText();
   };
 
-  // When the mic is pressed, start recognition and update mic state
+  const handleUserTextSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    await handleSubmit();
+  };
+
+  // When mic is pressed: start recognition and trigger dummy utterance.
   const handleMicPress = () => {
     if (!recognitionRef.current) return;
     setMicActive(true);
-    setUserText(''); // clear any previous text
+    setUserText('');
+    // Trigger a silent dummy utterance for iOS unlock.
+    const dummy = new SpeechSynthesisUtterance('');
+    dummy.volume = 0;
+    synth?.speak(dummy);
+    console.log('Mic pressed: starting recognition.');
     recognitionRef.current.start();
   };
 
-  // When the mic is released, stop recognition and update mic state
+  // When mic is released: stop recognition (which triggers onend).
   const handleMicRelease = () => {
     if (!recognitionRef.current) return;
     setMicActive(false);
     recognitionRef.current.stop();
+    console.log('Mic released: stopping recognition.');
   };
 
   return (
     <div className='fixed bottom-0 left-0 w-full bg-gray-800/80 backdrop-blur-md p-4 z-50 border-t border-gray-700'>
       <form
-        onSubmit={handleUserText}
+        onSubmit={handleUserTextSubmit}
         className='max-w-3xl mx-auto flex space-x-3 items-center'
       >
         <input
           value={userText}
           onChange={(e) => setUserText(e.target.value)}
-          className='flex-grow bg-gray-700 border border-gray-600 outline-none rounded-md placeholder:text-gray-300 p-3 text-gray-300'
+          className='flex-grow bg-gray-700 border border-gray-600 outline-none rounded-md placeholder:text-gray-300 p-3 text-gray-300 cursor-text'
           type='text'
           placeholder='Ask me anything...'
         />
-
-        {/* Microphone button using Heroicons style with active press effect */}
+        {/* Microphone Button */}
         <button
           type='button'
           onMouseDown={handleMicPress}
           onMouseUp={handleMicRelease}
           onTouchStart={handleMicPress}
           onTouchEnd={handleMicRelease}
-          className={`bg-black bg-opacity-20 rounded-full p-2 w-12 h-12 flex items-center justify-center transition-transform duration-150 
-            ${
-              micActive
-                ? 'scale-110 bg-opacity-40'
-                : 'hover:bg-opacity-30 active:bg-opacity-40'
-            }`}
+          className={`bg-black bg-opacity-20 rounded-full p-2 w-12 h-12 flex items-center justify-center transition-transform duration-150 cursor-pointer ${
+            micActive
+              ? 'scale-110 bg-opacity-40'
+              : 'hover:bg-opacity-30 active:bg-opacity-40'
+          }`}
         >
           <svg
             xmlns='http://www.w3.org/2000/svg'
@@ -204,15 +212,15 @@ export const TextToSpeech = () => {
             <path strokeLinecap='round' strokeLinejoin='round' d='M12 19v3' />
           </svg>
         </button>
-
+        {/* Ask Button */}
         <button
+          type='submit'
           disabled={isLoading}
-          className='bg-[#6c5ce7] text-white p-3 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed hover:bg-[#4c3ead] transition-colors duration-200'
+          className='bg-[#6c5ce7] text-white p-3 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed hover:bg-[#4c3ead] transition-colors duration-200 cursor-pointer'
         >
           {isLoading ? 'Thinking...' : 'Ask'}
         </button>
       </form>
-
       {spokenText && (
         <div className='absolute top-[-60px] left-0 w-full bg-gray-900/70 backdrop-blur-md p-4 text-white text-center rounded-t-md'>
           {spokenText}
@@ -221,3 +229,5 @@ export const TextToSpeech = () => {
     </div>
   );
 };
+
+export default TextToSpeech;
